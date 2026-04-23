@@ -6,13 +6,11 @@ const nextConfig: NextConfig = {
   outputFileTracingExcludes: {
     '*': ['data/**'],
   },
-  experimental: {
-    turbo: {
-      resolveExtensions: ['.tsx', '.ts', '.jsx', '.js', '.mjs', '.json', '.css'],
-      rules: {
-        'data/*.ddb': { loaders: [] },
-        'data/*.wal': { loaders: [] },
-      },
+  turbopack: {
+    resolveExtensions: ['.tsx', '.ts', '.jsx', '.js', '.mjs', '.json', '.css'],
+    rules: {
+      'data/*.ddb': { loaders: [] },
+      'data/*.wal': { loaders: [] },
     },
   },
   webpack: (config) => {
