@@ -45,7 +45,7 @@ async function initDB(): Promise<DuckDBConnection> {
   )`)
   await conn.run(`CREATE TABLE order_cancellations (
     id VARCHAR PRIMARY KEY, order_id VARCHAR NOT NULL UNIQUE,
-    reason_category VARCHAR NOT NULL, detailed_reason TEXT NOT NULL,
+    reason_category VARCHAR, detailed_reason TEXT,
     cancelled_at TIMESTAMP NOT NULL
   )`)
 
@@ -84,11 +84,10 @@ async function initDB(): Promise<DuckDBConnection> {
     await batchInsert(conn, itemSqls.slice(i, i + 500))
   }
 
-  const cancelSqls = cancellations.map(c =>
-    `INSERT INTO order_cancellations VALUES (${esc(c.id)},${esc(c.order_id)},${esc(c.reason_category)},${esc(c.detailed_reason)},${esc(c.cancelled_at)})`
-  )
-  if (cancelSqls.length > 0) {
-    await batchInsert(conn, cancelSqls)
+  if (cancellations.length > 0) {
+    await batchInsert(conn, cancellations.map(c =>
+      `INSERT INTO order_cancellations VALUES (${esc(c.id)},${esc(c.order_id)},NULL,NULL,${esc(c.cancelled_at)})`
+    ))
   }
 
   return conn

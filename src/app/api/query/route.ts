@@ -58,6 +58,7 @@ export async function POST(req: NextRequest) {
     })
   } catch (err) {
     console.error('Query error:', err)
-    return NextResponse.json({ error: 'Query failed. Please try a different question.' }, { status: 500 })
+    const msg = err instanceof Error ? err.message : String(err)
+    return NextResponse.json({ error: `Query failed: ${msg}` }, { status: 500 })
   }
 }

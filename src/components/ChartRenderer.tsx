@@ -30,6 +30,12 @@ function fmtLabel(key: string): string {
   return key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
 }
 
+function fmtAxisLabel(val: unknown): string {
+  const s = String(val ?? '')
+  // "2026-04-14 00:00:00" → "2026-04-14"
+  return s.length > 10 && s[10] === ' ' ? s.slice(0, 10) : s
+}
+
 export default function ChartRenderer({ chartType, columns, rows }: Props) {
   if (!rows.length || !columns.length) return null
 
@@ -38,8 +44,15 @@ export default function ChartRenderer({ chartType, columns, rows }: Props) {
   // KPI: single value
   if (chartType === 'kpi') {
     const val = rows[0][valueColumns[0] ?? labelCol]
+    const labelVal = rows[0][labelCol]
+    const hasLabel = valueColumns.length > 0 && typeof labelVal === 'string'
     return (
       <div className="flex flex-col items-center justify-center py-6">
+        {hasLabel && (
+          <p className="text-lg font-semibold mb-1" style={{ color: '#1A1A1A' }}>
+            {String(labelVal)}
+          </p>
+        )}
         <p className="text-5xl font-bold" style={{ color: '#008080', letterSpacing: '-0.04em' }}>
           {toNum(val) >= 100 ? `$${toNum(val).toLocaleString('en-US', { maximumFractionDigits: 0 })}` : toNum(val).toLocaleString('en-US', { maximumFractionDigits: 2 })}
         </p>
@@ -71,9 +84,9 @@ export default function ChartRenderer({ chartType, columns, rows }: Props) {
       <ResponsiveContainer width="100%" height={260}>
         <LineChart data={data} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-          <XAxis dataKey="label" tick={{ fontSize: 12, fill: '#6C757D' }} />
+          <XAxis dataKey="label" tick={{ fontSize: 12, fill: '#6C757D' }} tickFormatter={fmtAxisLabel} />
           <YAxis tick={{ fontSize: 12, fill: '#6C757D' }} tickFormatter={v => `$${Number(v).toLocaleString()}`} />
-          <Tooltip formatter={(v) => fmtValue(v)} />
+          <Tooltip formatter={(v) => fmtValue(v)} labelFormatter={fmtAxisLabel} />
           {valueColumns.map((col, i) => (
             <Line key={col} type="monotone" dataKey={col} stroke={COLORS[i % COLORS.length]} strokeWidth={2} dot={false} name={fmtLabel(col)} />
           ))}
@@ -89,9 +102,9 @@ export default function ChartRenderer({ chartType, columns, rows }: Props) {
       <ResponsiveContainer width="100%" height={260}>
         <BarChart data={data} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-          <XAxis dataKey="label" tick={{ fontSize: 12, fill: '#6C757D' }} />
+          <XAxis dataKey="label" tick={{ fontSize: 12, fill: '#6C757D' }} tickFormatter={fmtAxisLabel} />
           <YAxis tick={{ fontSize: 12, fill: '#6C757D' }} tickFormatter={v => `$${Number(v).toLocaleString()}`} />
-          <Tooltip formatter={(v) => fmtValue(v)} />
+          <Tooltip formatter={(v) => fmtValue(v)} labelFormatter={fmtAxisLabel} />
           <Legend formatter={fmtLabel} />
           {valueColumns.map((col, i) => (
             <Bar key={col} dataKey={col} fill={COLORS[i % COLORS.length]} name={fmtLabel(col)} radius={[2, 2, 0, 0]} />

@@ -28,7 +28,7 @@ async function main() {
   await conn.run(`CREATE TABLE products (id VARCHAR PRIMARY KEY, vendor_id VARCHAR NOT NULL, sku VARCHAR NOT NULL, name VARCHAR NOT NULL, category VARCHAR NOT NULL, unit_price DOUBLE NOT NULL, created_at TIMESTAMP NOT NULL)`)
   await conn.run(`CREATE TABLE orders (id VARCHAR PRIMARY KEY, customer_id VARCHAR NOT NULL, order_date TIMESTAMP NOT NULL, status VARCHAR NOT NULL, total_amount DOUBLE NOT NULL, shipped_at TIMESTAMP, delivered_at TIMESTAMP)`)
   await conn.run(`CREATE TABLE order_items (id VARCHAR PRIMARY KEY, order_id VARCHAR NOT NULL, product_id VARCHAR NOT NULL, quantity INTEGER NOT NULL, unit_price DOUBLE NOT NULL)`)
-  await conn.run(`CREATE TABLE order_cancellations (id VARCHAR PRIMARY KEY, order_id VARCHAR NOT NULL UNIQUE, reason_category VARCHAR NOT NULL, detailed_reason TEXT NOT NULL, cancelled_at TIMESTAMP NOT NULL)`)
+  await conn.run(`CREATE TABLE order_cancellations (id VARCHAR PRIMARY KEY, order_id VARCHAR NOT NULL UNIQUE, reason_category VARCHAR, detailed_reason TEXT, cancelled_at TIMESTAMP NOT NULL)`)
   await conn.run('CREATE INDEX idx_products_vendor_id ON products(vendor_id)')
   await conn.run('CREATE INDEX idx_orders_customer_id ON orders(customer_id)')
   await conn.run('CREATE INDEX idx_orders_order_date ON orders(order_date)')
@@ -73,7 +73,7 @@ async function main() {
   if (cancellations.length > 0) {
     await conn.run('BEGIN')
     for (const c of cancellations)
-      await conn.run(`INSERT INTO order_cancellations VALUES (${esc(c.id)},${esc(c.order_id)},${esc(c.reason_category)},${esc(c.detailed_reason)},${esc(c.cancelled_at)})`)
+      await conn.run(`INSERT INTO order_cancellations VALUES (${esc(c.id)},${esc(c.order_id)},NULL,NULL,${esc(c.cancelled_at)})`)
     await conn.run('COMMIT')
   }
 

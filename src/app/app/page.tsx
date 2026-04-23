@@ -24,9 +24,31 @@ export default function AppPage() {
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [vendorId, setVendorId] = useState(SUPPLIER_1_ID)
+  const [listening, setListening] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
+  const recognizerRef = useRef<any>(null)
   const router = useRouter()
+
+  const hasSpeech = typeof window !== 'undefined' &&
+    ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)
+
+  function startVoice() {
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+    if (!SR) return
+    if (listening) { recognizerRef.current?.stop(); return }
+    const rec = new SR()
+    rec.lang = 'en-US'
+    rec.interimResults = false
+    rec.onstart = () => setListening(true)
+    rec.onend = () => setListening(false)
+    rec.onresult = (e: any) => {
+      const transcript = e.results[0][0].transcript
+      setInput(prev => prev ? prev + ' ' + transcript : transcript)
+    }
+    rec.start()
+    recognizerRef.current = rec
+  }
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -180,13 +202,23 @@ export default function AppPage() {
             onBlurCapture={e => (e.currentTarget.style.borderColor = '#E5E7EB')}
           >
             <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: '#39FF14' }} />
+            {hasSpeech && (
+              <button
+                onClick={startVoice}
+                title={listening ? 'Stop recording' : 'Voice input'}
+                className="shrink-0 text-base leading-none transition-colors"
+                style={{ color: listening ? '#ef4444' : '#6C757D', animation: listening ? 'pulse 1s infinite' : 'none' }}
+              >
+                🎤
+              </button>
+            )}
             <textarea
               ref={inputRef}
               rows={1}
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder={`Ask ${currentVendor.name} anything about your sales…`}
+              placeholder={listening ? 'Listening…' : `Ask ${currentVendor.name} anything about your sales…`}
               disabled={loading}
               className="flex-1 text-sm outline-none resize-none bg-transparent"
               style={{ color: '#1A1A1A', maxHeight: 120 }}

@@ -20,7 +20,7 @@ export interface OrderItem {
   id: string; order_id: string; product_id: string; quantity: number; unit_price: number
 }
 export interface OrderCancellation {
-  id: string; order_id: string; reason_category: string; detailed_reason: string; cancelled_at: string
+  id: string; order_id: string; reason_category: string | null; detailed_reason: string | null; cancelled_at: string
 }
 
 // --- Mulberry32 deterministic RNG ---
@@ -126,21 +126,12 @@ function pickProduct(type: 's1' | 's2'): Product {
   }
 }
 
-// --- Date generation (last 24 months with seasonality) ---
-const BASE_DATE = new Date('2024-04-24T00:00:00Z')
-const END_DATE = new Date('2026-04-23T23:59:59Z')
+// --- Date generation (last 30 days) ---
+const END_DATE = new Date('2026-04-24T23:59:59Z')
+const BASE_DATE = new Date(END_DATE.getTime() - 30 * 24 * 60 * 60 * 1000)
 const DATE_RANGE_MS = END_DATE.getTime() - BASE_DATE.getTime()
 
 function seasonalRand(): number {
-  // Try up to 5 times to get a date that passes the seasonality filter
-  for (let i = 0; i < 5; i++) {
-    const ms = rand() * DATE_RANGE_MS
-    const d = new Date(BASE_DATE.getTime() + ms)
-    const month = d.getMonth() // 0-indexed
-    // Summer (5,6,7) and December (11) get 1.5x — accept with 100% in peak, 66% off-peak
-    const isPeak = month >= 5 && month <= 7 || month === 11
-    if (isPeak || rand() < 0.66) return BASE_DATE.getTime() + ms
-  }
   return BASE_DATE.getTime() + rand() * DATE_RANGE_MS
 }
 
@@ -158,14 +149,6 @@ function pickStatus(): string {
   return 'cancelled'
 }
 
-const CANCEL_REASONS = [
-  { category: 'Customer Request', detail: 'Customer contacted support to cancel the order before shipment.' },
-  { category: 'Out of Stock', detail: 'Item was unavailable after order was placed due to inventory shortage.' },
-  { category: 'Shipping Issue', detail: 'Carrier was unable to deliver to the specified address.' },
-  { category: 'Payment Failed', detail: 'Payment authorization was declined and customer did not retry.' },
-  { category: 'Duplicate Order', detail: 'Customer accidentally submitted the same order twice.' },
-]
-
 // --- Generate Orders, Order Items, Cancellations ---
 export function generateOrderData(): {
   orders: Order[]
@@ -175,9 +158,6 @@ export function generateOrderData(): {
   const orders: Order[] = []
   const orderItems: OrderItem[] = []
   const cancellations: OrderCancellation[] = []
-
-  let cancelCount = 0
-  const MAX_CANCELS = 490
 
   function makeOrder(idx: number, type: 's1' | 's2') {
     const orderId = `ord-${type}-${String(idx).padStart(6, '0')}`
@@ -229,15 +209,13 @@ export function generateOrderData(): {
     orders.push({ id: orderId, customer_id: customer.id, order_date: orderDate, status, total_amount: totalAmount, shipped_at: shippedAt, delivered_at: deliveredAt })
     orderItems.push(...items)
 
-    if (status === 'cancelled' && cancelCount < MAX_CANCELS) {
-      cancelCount++
-      const reason = pick(CANCEL_REASONS)
+    if (status === 'cancelled') {
       cancellations.push({
         id: `cancel-${orderId}`,
         order_id: orderId,
-        reason_category: reason.category,
-        detailed_reason: reason.detail,
-        cancelled_at: tsToStr(orderMs + randInt(0, 2) * 86400000),
+        reason_category: null,
+        detailed_reason: null,
+        cancelled_at: tsToStr(orderMs + pick([0, 1, 2]) * 86400000),
       })
     }
   }

@@ -48,8 +48,8 @@ CREATE TABLE IF NOT EXISTS order_items (
 CREATE TABLE IF NOT EXISTS order_cancellations (
     id              VARCHAR PRIMARY KEY,
     order_id        VARCHAR NOT NULL UNIQUE REFERENCES orders(id),
-    reason_category VARCHAR NOT NULL,
-    detailed_reason TEXT NOT NULL,
+    reason_category VARCHAR,
+    detailed_reason TEXT,
     cancelled_at    TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
