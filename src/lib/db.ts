@@ -119,6 +119,11 @@ export async function runQuery(
           const ms = Number((v as { micros: bigint }).micros) / 1000
           return [col, new Date(ms).toISOString().replace('T', ' ').replace(/\.\d+Z$/, '')]
         }
+        if (v !== null && typeof v === 'object' && 'days' in v) {
+          // DuckDB date object — days since 1970-01-01
+          const ms = Number((v as { days: number }).days) * 86400000
+          return [col, new Date(ms).toISOString().slice(0, 10)]
+        }
         return [col, v]
       })
     )
