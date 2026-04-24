@@ -134,7 +134,7 @@ export default function ChartRenderer({ chartType, columns, rows }: Props) {
       <BarChart data={data} layout="vertical" margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" horizontal={false} />
         <XAxis type="number" tick={{ fontSize: 12, fill: '#6C757D' }} tickFormatter={v => fmtNum(v, valCol)} />
-        <YAxis type="category" dataKey="label" width={160} tick={{ fontSize: 12, fill: '#1A1A1A' }} />
+        <YAxis type="category" dataKey="label" width={220} tick={{ fontSize: 11, fill: '#1A1A1A' }} />
         <Tooltip formatter={(v) => fmtNum(v, valCol)} />
         <Bar dataKey="value" fill="#008080" name={fmtLabel(valCol)} radius={[0, 2, 2, 0]} />
       </BarChart>
