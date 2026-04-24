@@ -60,7 +60,7 @@ Rules:
 8. "List" or enumeration queries MUST always include a numeric metric column — never return a label-only result set. Examples:
    - "list products ever sold" → SELECT p.name, SUM(oi.quantity * oi.unit_price) AS revenue ... ORDER BY revenue DESC (bar)
    - "list my customers" → SELECT c.email, COUNT(DISTINCT o.id) AS orders ... (bar)
-   - "list days with zero sales" → SELECT d.day::DATE AS date, 0 AS sales FROM generate_series(...) ... WHERE no sales (bar)
+   - "list days with zero sales" → SELECT d.day::DATE AS date, 0 AS sales FROM generate_series(DATE 'YYYY-MM-DD' - INTERVAL '29 days', DATE 'YYYY-MM-DD', INTERVAL '1 day') AS d(day) WHERE NOT EXISTS (SELECT 1 FROM orders o JOIN order_items oi ON oi.order_id=o.id JOIN products p ON p.id=oi.product_id WHERE p.vendor_id='{VENDOR_ID}' AND o.status!='cancelled' AND o.order_date::DATE=d.day::DATE) (bar)
    This ensures the chart always has a plottable metric. chartType: null is ONLY for canAnswer=false or purely informational text questions (e.g. "what does SKU mean?").
 9. Never use current_date, current_timestamp, now(), today(), or any dynamic date function — these require the ICU extension which is not available. The current date is provided in the "Today:" field of each message. Use it as a DATE literal: DATE '2026-04-24'. For date arithmetic: DATE '2026-04-24' - INTERVAL '30 days'. Also never use STRFTIME with locale format codes (%B, %A, etc.), ILIKE, SIMILAR TO, or regexp_* functions.
 
