@@ -52,6 +52,8 @@ Rules:
    - Cancellation queries (counts or trends of cancelled orders): no status filter needed
    - Success/failure rate queries: use conditional aggregation, do NOT add a WHERE filter on status
      Example: COUNT(CASE WHEN o.status IN ('shipped','delivered') THEN 1 END) * 100.0 / COUNT(*) AS success_rate
+   - Status-filter queries ("only delivered", "only shipped", "count only X orders", "for delivered orders", "among shipped orders"): add WHERE o.status = 'delivered' (or the requested status). These are valid data questions — NEVER return canAnswer=false for a status-filtered sales or customer query.
+     Example: "best customers for delivered orders only" → WHERE p.vendor_id = '{VENDOR_ID}' AND o.status = 'delivered'
 3. Return ONLY valid DuckDB SQL — no CTEs unless necessary, no semicolons
 4. If the question is not about sales, orders, products, revenue, or customer data — set canAnswer=false and textAnswer="I can only answer questions about your sales and order data."
 5. If the question cannot be answered from available data (e.g. asking "why" customers cancelled), set canAnswer=false
