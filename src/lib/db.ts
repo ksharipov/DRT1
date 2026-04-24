@@ -44,6 +44,9 @@ async function initConn(): Promise<Conn> {
   db.open({ path: ':memory:' })
   const conn = db.connect()
 
+  exec(conn, 'SET autoinstall_known_extensions = false')
+  exec(conn, 'SET autoload_known_extensions = false')
+
   exec(conn, `CREATE TABLE vendors (
     id VARCHAR PRIMARY KEY, company_name VARCHAR NOT NULL,
     contact_email VARCHAR NOT NULL, status VARCHAR NOT NULL,
