@@ -13,6 +13,7 @@ const nextConfig: NextConfig = {
       './node_modules/@duckdb/duckdb-wasm/dist/duckdb-node-mvp.worker.cjs',
       './node_modules/@duckdb/duckdb-wasm/dist/duckdb-node-eh.worker.cjs',
       './node_modules/@duckdb/duckdb-wasm/dist/duckdb-node-blocking.cjs',
+      './node_modules/apache-arrow/**',
     ],
   },
   turbopack: {
