@@ -51,10 +51,20 @@ A microphone button activates the Web Speech API. The transcribed text is placed
 ### Vendor Dropdown Shows Line of Business
 The switcher displays both the supplier name **and** the line of business (e.g. *Supplier 1 — Food & Beverage*), not just the name. This makes it immediately clear what data set you are querying.
 
+### Auto-Expanding Input
+The question input grows as you type (up to ~5 lines) and shrinks back after sending. Supports multi-line questions via Shift+Enter.
+
+### Scrollable Bar Charts
+Horizontal bar charts with many items (e.g. all customers) scroll vertically within a fixed-height container rather than pushing the page down.
+
 ### Boundary Conditions Tested and Enforced in the Prompt
-- **Vendor isolation:** the AI is required to JOIN through `order_items → products → vendor_id` on every query, even for customer-level questions. A query that bypasses this join is rejected at the prompt level.
-- **Cancelled orders:** revenue/quantity queries automatically exclude cancelled orders; cancellation-specific queries do not.
-- **Out-of-scope questions:** the AI declines questions unrelated to sales data ("what does SKU mean?", "write me a poem") with a clear message rather than hallucinating an answer.
+- **Vendor isolation:** every query JOINs through `order_items → products → vendor_id`, even for customer-level questions. A query that bypasses this join produces wrong results.
+- **Cancelled orders:** revenue queries automatically exclude cancelled orders; cancellation-specific queries do not; success/failure rate queries use conditional aggregation.
+- **Status-filtered queries:** phrases like "only delivered orders" or "just shipped" are treated as WHERE filters — they do not change the aggregation metric (revenue remains revenue).
+- **Monetary vs quantity:** "sales" without qualification defaults to revenue (`SUM(qty × price)`). Unit counts are used only when explicitly asked ("how many items", "number of units").
+- **Grouped bar charts:** use DuckDB `PIVOT` to produce wide-format data (one column per group). Long-format `(week, category, revenue)` would silently break the chart renderer.
+- **Best-per-group queries:** "top product per week" concatenates group and winner into one label column, preventing the string column from being misread as a numeric metric.
+- **Out-of-scope questions:** the AI declines questions unrelated to sales data with a clear message rather than hallucinating an answer.
 - **Single-column results:** if a query would produce only a label column with no metric, the AI is instructed to always add a numeric aggregate — preventing empty or broken charts.
 
 ### Password Protection
@@ -76,10 +86,24 @@ npm run dev
 Open [http://localhost:3000](http://localhost:3000), enter the demo password, pick a vendor, and start asking questions.
 
 ```bash
-npm run build   # production build (forces webpack — see note below)
+npm run build   # production build (forces webpack — see Technical Notes)
 ```
 
-> **Note on bundler:** Next.js 16 defaults to Turbopack for both dev and production builds. `next build --webpack` (set in both `package.json` and `vercel.json`) is required because Turbopack on Vercel activates a platform-level native DuckDB adapter (`@duckdb/node-api`) that fails with a missing `libduckdb.so` on Amazon Linux 2.
+---
+
+## Technical Notes
+
+### Bundler: webpack required
+`next build --webpack` (set in both `package.json` and `vercel.json`) is required.
+Turbopack on Vercel activates a platform-level native DuckDB adapter (`@duckdb/node-api`) that fails with a missing `libduckdb.so` on Amazon Linux 2.
+
+### DuckDB WASM constraints
+- **ICU extension disabled:** `SET autoinstall_known_extensions = false` is applied at startup. This means `current_date`, `now()`, `ILIKE`, and locale `STRFTIME` codes (`%B`, `%A`) are unavailable. The current date is injected as a literal in every AI request.
+- **HUGEINT handling:** `SUM(INTEGER)` returns DuckDB's `HUGEINT` type, which Arrow JS serializes as a 128-bit `Decimal`. `runQuery` in `db.ts` decodes this from its `Uint32Array` representation — without this, all unit-count aggregates appear as zero.
+- **WASM paths:** resolved via `process.cwd()`, not `require.resolve()` — Turbopack virtualizes the latter.
+
+### Prompt engineering
+All Text-to-SQL rules and the ChartRenderer column contract are documented in [`docs/PROMPTING.md`](docs/PROMPTING.md). Read it before modifying `src/lib/text2sql.ts` or `src/components/ChartRenderer.tsx`.
 
 ---
 
@@ -100,6 +124,8 @@ src/
     db.ts                  — DuckDB WASM init, seed, query runner
     seed-data.ts           — deterministic vendors / products / order generator
     auth.ts                — JWT sign/verify (jose)
+docs/
+  PROMPTING.md             — Text-to-SQL rules and ChartRenderer contract
 scripts/
   build-db.ts              — optional local script to export a .ddb file for DBeaver inspection
 ```
