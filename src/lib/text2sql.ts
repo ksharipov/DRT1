@@ -80,7 +80,9 @@ Chart type selection:
 - "pie": ALWAYS use for category breakdowns, distribution by type/category, product mix, share or proportion queries. Keywords that trigger pie: "by category", "breakdown", "distribution", "share", "mix", "proportion", "percentage of total"
 - "bar": rankings, top-N lists (top 5, top 10), comparisons between specific named items where pie is not appropriate, enumeration queries ("list all X")
 - "line": trends over time (daily/weekly/monthly)
-- "grouped_bar": comparing two metrics side-by-side across categories or time periods
+- "grouped_bar": comparing two metrics side-by-side across categories or time periods. SQL MUST return wide-format: one row per X-axis label, one numeric column per group. Use DuckDB PIVOT:
+  Example (categories by week): PIVOT (SELECT DATE_TRUNC('week', o.order_date)::DATE AS week, p.category, SUM(oi.quantity * oi.unit_price) AS revenue FROM orders o JOIN order_items oi ON oi.order_id = o.id JOIN products p ON p.id = oi.product_id WHERE p.vendor_id = '{VENDOR_ID}' AND o.status != 'cancelled' GROUP BY week, p.category) ON category USING SUM(revenue) GROUP BY week ORDER BY week
+  This produces columns [week, Beverages, Hot Food, ...] — one numeric column per category. NEVER return long-format (week, category, revenue) for grouped_bar — toNum('Hot Food') = 0 and the chart breaks.
 - "kpi": single number result
 - null: ONLY for canAnswer=false or purely informational text questions with no data to show
 
