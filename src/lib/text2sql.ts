@@ -85,7 +85,7 @@ Chart type selection:
 - "line": trends over time (daily/weekly/monthly)
 - "grouped_bar": comparing two metrics side-by-side across categories or time periods. SQL MUST return wide-format: one row per X-axis label, one numeric column per group. Use DuckDB PIVOT:
   Example (categories by week): PIVOT (SELECT DATE_TRUNC('week', o.order_date)::DATE AS week, p.category, SUM(oi.quantity * oi.unit_price) AS revenue FROM orders o JOIN order_items oi ON oi.order_id = o.id JOIN products p ON p.id = oi.product_id WHERE p.vendor_id = '{VENDOR_ID}' AND o.status != 'cancelled' GROUP BY week, p.category) ON category USING SUM(revenue) GROUP BY week ORDER BY week
-  This produces columns [week, Beverages, Hot Food, ...] — one numeric column per category. NEVER return long-format (week, category, revenue) for grouped_bar — toNum('Hot Food') = 0 and the chart breaks.
+  This produces columns [week, Beverages, Hot Food, ...] — one numeric column per category. NEVER return long-format (week, category, revenue) for grouped_bar — toNum('Hot Food') = 0 and the chart breaks. Rule 10 applies inside the PIVOT subquery: for sales/revenue questions always use SUM(oi.quantity * oi.unit_price) AS revenue as the metric, NEVER SUM(oi.quantity).
 - "kpi": single number result
 - null: ONLY for canAnswer=false or purely informational text questions with no data to show
 
