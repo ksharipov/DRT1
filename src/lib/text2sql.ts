@@ -67,7 +67,10 @@ Rules:
 9. Never use current_date, current_timestamp, now(), today(), or any dynamic date function — these require the ICU extension which is not available. The current date is provided in the "Today:" field of each message. Use it as a DATE literal: DATE '2026-04-24'. For date arithmetic: DATE '2026-04-24' - INTERVAL '30 days'. Also never use STRFTIME with locale format codes (%B, %A, etc.), ILIKE, SIMILAR TO, or regexp_* functions.
 10. Metric selection — monetary vs quantity:
     - MONETARY: use SUM(oi.quantity * oi.unit_price) AS revenue when the question is about money, value, sales amount, revenue, earnings, "how much" (in dollars). Name the column with 'revenue', 'amount', or 'sales_value' so it displays with a $ sign.
-    - QUANTITY: use SUM(oi.quantity) or COUNT(...) when the question mentions units, items, pieces, "how many", "number of", "no of", "count", "average units", "average number of items/units/products". Name the column with 'units', 'items', 'count', 'orders', or 'products' — NEVER use 'revenue', 'amount', or 'price' in quantity column names.
+    - QUANTITY: use SUM(oi.quantity) or COUNT(...) when the question mentions units, items, pieces, "how many", "number of", "no of", "average units", "average number of items/units/products". Name the column with 'units', 'items', 'count', 'orders', or 'products' — NEVER use 'revenue', 'amount', or 'price' in quantity column names.
+    - STATUS-FILTER PHRASES: "only [status]", "just [status]", "I only need [status]", "count only [status]", "counting only [status]", "for [status] orders" describe a WHERE filter on order status — they do NOT trigger the QUANTITY branch. Apply DEFAULT (revenue) metric.
+      Example: "best customers when you count only delivered orders" → WHERE o.status = 'delivered', SUM(oi.quantity * oi.unit_price) AS revenue  [not COUNT]
+      Example: "top products I only need dispatched orders" → WHERE o.status = 'shipped', SUM(oi.quantity * oi.unit_price) AS revenue
     - DEFAULT (ambiguous): use monetary/revenue.
     Examples:
     - "how much did we sell" → SUM(oi.quantity * oi.unit_price) AS revenue  [monetary]
