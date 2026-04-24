@@ -68,12 +68,6 @@ export default function AppPage() {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, loading])
 
-  useEffect(() => {
-    const el = inputRef.current
-    if (!el) return
-    el.style.height = 'auto'
-    el.style.height = Math.min(el.scrollHeight, 200) + 'px'
-  }, [input])
 
   const currentVendor = VENDORS.find(v => v.id === vendorId) ?? VENDORS[0]
 
@@ -238,7 +232,12 @@ export default function AppPage() {
               ref={inputRef}
               rows={1}
               value={input}
-              onChange={e => setInput(e.target.value)}
+              onChange={e => {
+                setInput(e.target.value)
+                const el = e.target as HTMLTextAreaElement
+                el.style.height = 'auto'
+                el.style.height = Math.min(el.scrollHeight, 200) + 'px'
+              }}
               onKeyDown={handleKeyDown}
               placeholder={listening ? 'Listening…' : `Ask ${currentVendor.name} anything about your sales…`}
               disabled={loading}
