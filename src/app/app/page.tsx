@@ -243,7 +243,7 @@ export default function AppPage() {
               placeholder={listening ? 'Listening…' : `Ask ${currentVendor.name} anything about your sales…`}
               disabled={loading}
               className="flex-1 text-sm outline-none resize-none bg-transparent"
-              style={{ color: '#1A1A1A' }}
+              style={{ color: '#1A1A1A', overflowY: 'hidden' }}
             />
           </div>
           <button
