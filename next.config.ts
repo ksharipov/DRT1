@@ -2,9 +2,18 @@ import type { NextConfig } from 'next'
 import path from 'path'
 
 const nextConfig: NextConfig = {
-  serverExternalPackages: ['duckdb'],
+  serverExternalPackages: ['@duckdb/duckdb-wasm'],
   outputFileTracingExcludes: {
     '*': ['data/**'],
+  },
+  outputFileTracingIncludes: {
+    '/api/query': [
+      './node_modules/@duckdb/duckdb-wasm/dist/duckdb-mvp.wasm',
+      './node_modules/@duckdb/duckdb-wasm/dist/duckdb-eh.wasm',
+      './node_modules/@duckdb/duckdb-wasm/dist/duckdb-node-mvp.worker.cjs',
+      './node_modules/@duckdb/duckdb-wasm/dist/duckdb-node-eh.worker.cjs',
+      './node_modules/@duckdb/duckdb-wasm/dist/duckdb-node-blocking.cjs',
+    ],
   },
   turbopack: {
     resolveExtensions: ['.tsx', '.ts', '.jsx', '.js', '.mjs', '.json', '.css'],

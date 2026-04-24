@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.90.0",
-    "duckdb": "^1.4.4",
+    "@duckdb/duckdb-wasm": "^1.33.1-dev45.0",
     "jose": "^6.2.2",
     "lucide-react": "^1.9.0",
     "next": "16.2.4",

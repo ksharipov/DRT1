@@ -1,78 +1,93 @@
-import duckdb from 'duckdb'
+import path from 'path'
 import { vendors, customers, products, generateOrderData } from './seed-data'
 
-let dbPromise: Promise<duckdb.Database> | null = null
+// Use the blocking (synchronous) Node.js bundle — no native deps, pure WASM
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { createDuckDB, VoidLogger, NODE_RUNTIME } = require('@duckdb/duckdb-wasm/dist/duckdb-node-blocking.cjs')
+
+// Resolve paths to WASM and worker files at runtime from node_modules
+const WASM_DIST = path.join(process.cwd(), 'node_modules/@duckdb/duckdb-wasm/dist')
+const BUNDLES = {
+  mvp: {
+    mainModule: path.join(WASM_DIST, 'duckdb-mvp.wasm'),
+    mainWorker: path.join(WASM_DIST, 'duckdb-node-mvp.worker.cjs'),
+  },
+  eh: {
+    mainModule: path.join(WASM_DIST, 'duckdb-eh.wasm'),
+    mainWorker: path.join(WASM_DIST, 'duckdb-node-eh.worker.cjs'),
+  },
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Conn = any
+
+let connPromise: Promise<Conn> | null = null
 
 function esc(v: string | null): string {
   if (v === null) return 'NULL'
   return `'${String(v).replace(/'/g, "''")}'`
 }
 
-function dbRun(db: duckdb.Database, sql: string): Promise<void> {
-  return new Promise((resolve, reject) =>
-    db.run(sql, (err) => (err ? reject(err) : resolve()))
-  )
+function exec(conn: Conn, sql: string): void {
+  conn.query(sql)
 }
 
-function dbAll(db: duckdb.Database, sql: string): Promise<duckdb.RowData[]> {
-  return new Promise((resolve, reject) =>
-    db.all(sql, (err, rows) => (err ? reject(err) : resolve(rows ?? [])))
-  )
+function batchInsert(conn: Conn, sqls: string[]): void {
+  exec(conn, 'BEGIN')
+  for (const s of sqls) exec(conn, s)
+  exec(conn, 'COMMIT')
 }
 
-async function batchInsert(db: duckdb.Database, sqls: string[]) {
-  await dbRun(db, 'BEGIN')
-  for (const s of sqls) await dbRun(db, s)
-  await dbRun(db, 'COMMIT')
-}
+async function initConn(): Promise<Conn> {
+  const db = await createDuckDB(BUNDLES, new VoidLogger(), NODE_RUNTIME)
+  await db.instantiate()
+  db.open({ path: ':memory:' })
+  const conn = db.connect()
 
-async function initDB(): Promise<duckdb.Database> {
-  const db = new duckdb.Database(':memory:')
-
-  await dbRun(db, `CREATE TABLE vendors (
+  exec(conn, `CREATE TABLE vendors (
     id VARCHAR PRIMARY KEY, company_name VARCHAR NOT NULL,
     contact_email VARCHAR NOT NULL, status VARCHAR NOT NULL,
     created_at TIMESTAMP NOT NULL
   )`)
-  await dbRun(db, `CREATE TABLE customers (
+  exec(conn, `CREATE TABLE customers (
     id VARCHAR PRIMARY KEY, email VARCHAR NOT NULL,
     region VARCHAR NOT NULL, signup_date TIMESTAMP NOT NULL
   )`)
-  await dbRun(db, `CREATE TABLE products (
+  exec(conn, `CREATE TABLE products (
     id VARCHAR PRIMARY KEY, vendor_id VARCHAR NOT NULL, sku VARCHAR NOT NULL,
     name VARCHAR NOT NULL, category VARCHAR NOT NULL,
     unit_price DOUBLE NOT NULL, created_at TIMESTAMP NOT NULL
   )`)
-  await dbRun(db, `CREATE TABLE orders (
+  exec(conn, `CREATE TABLE orders (
     id VARCHAR PRIMARY KEY, customer_id VARCHAR NOT NULL,
     order_date TIMESTAMP NOT NULL, status VARCHAR NOT NULL,
     total_amount DOUBLE NOT NULL,
     shipped_at TIMESTAMP, delivered_at TIMESTAMP
   )`)
-  await dbRun(db, `CREATE TABLE order_items (
+  exec(conn, `CREATE TABLE order_items (
     id VARCHAR PRIMARY KEY, order_id VARCHAR NOT NULL, product_id VARCHAR NOT NULL,
     quantity INTEGER NOT NULL, unit_price DOUBLE NOT NULL
   )`)
-  await dbRun(db, `CREATE TABLE order_cancellations (
+  exec(conn, `CREATE TABLE order_cancellations (
     id VARCHAR PRIMARY KEY, order_id VARCHAR NOT NULL UNIQUE,
     reason_category VARCHAR, detailed_reason TEXT,
     cancelled_at TIMESTAMP NOT NULL
   )`)
 
-  await dbRun(db, 'CREATE INDEX idx_products_vendor_id ON products(vendor_id)')
-  await dbRun(db, 'CREATE INDEX idx_orders_customer_id ON orders(customer_id)')
-  await dbRun(db, 'CREATE INDEX idx_orders_order_date ON orders(order_date)')
-  await dbRun(db, 'CREATE INDEX idx_orders_status ON orders(status)')
-  await dbRun(db, 'CREATE INDEX idx_order_items_order_id ON order_items(order_id)')
-  await dbRun(db, 'CREATE INDEX idx_order_items_product_id ON order_items(product_id)')
+  exec(conn, 'CREATE INDEX idx_products_vendor_id ON products(vendor_id)')
+  exec(conn, 'CREATE INDEX idx_orders_customer_id ON orders(customer_id)')
+  exec(conn, 'CREATE INDEX idx_orders_order_date ON orders(order_date)')
+  exec(conn, 'CREATE INDEX idx_orders_status ON orders(status)')
+  exec(conn, 'CREATE INDEX idx_order_items_order_id ON order_items(order_id)')
+  exec(conn, 'CREATE INDEX idx_order_items_product_id ON order_items(product_id)')
 
-  await batchInsert(db, vendors.map(v =>
+  batchInsert(conn, vendors.map(v =>
     `INSERT INTO vendors VALUES (${esc(v.id)},${esc(v.company_name)},${esc(v.contact_email)},${esc(v.status)},${esc(v.created_at)})`
   ))
-  await batchInsert(db, customers.map(c =>
+  batchInsert(conn, customers.map(c =>
     `INSERT INTO customers VALUES (${esc(c.id)},${esc(c.email)},${esc(c.region)},${esc(c.signup_date)})`
   ))
-  await batchInsert(db, products.map(p =>
+  batchInsert(conn, products.map(p =>
     `INSERT INTO products VALUES (${esc(p.id)},${esc(p.vendor_id)},${esc(p.sku)},${esc(p.name)},${esc(p.category)},${p.unit_price},${esc(p.created_at)})`
   ))
 
@@ -81,55 +96,61 @@ async function initDB(): Promise<duckdb.Database> {
   const orderSqls = orders.map(o =>
     `INSERT INTO orders VALUES (${esc(o.id)},${esc(o.customer_id)},${esc(o.order_date)},${esc(o.status)},${o.total_amount},${esc(o.shipped_at)},${esc(o.delivered_at)})`
   )
-  for (let i = 0; i < orderSqls.length; i += 500) {
-    await batchInsert(db, orderSqls.slice(i, i + 500))
-  }
+  for (let i = 0; i < orderSqls.length; i += 500) batchInsert(conn, orderSqls.slice(i, i + 500))
 
   const itemSqls = orderItems.map(it =>
     `INSERT INTO order_items VALUES (${esc(it.id)},${esc(it.order_id)},${esc(it.product_id)},${it.quantity},${it.unit_price})`
   )
-  for (let i = 0; i < itemSqls.length; i += 500) {
-    await batchInsert(db, itemSqls.slice(i, i + 500))
-  }
+  for (let i = 0; i < itemSqls.length; i += 500) batchInsert(conn, itemSqls.slice(i, i + 500))
 
   if (cancellations.length > 0) {
-    await batchInsert(db, cancellations.map(c =>
+    batchInsert(conn, cancellations.map(c =>
       `INSERT INTO order_cancellations VALUES (${esc(c.id)},${esc(c.order_id)},NULL,NULL,${esc(c.cancelled_at)})`
     ))
   }
 
-  return db
+  return conn
 }
 
-export function getDB(): Promise<duckdb.Database> {
-  if (!dbPromise) {
-    dbPromise = initDB()
-  }
-  return dbPromise
+export function getDB(): Promise<Conn> {
+  if (!connPromise) connPromise = initConn()
+  return connPromise
 }
 
 export async function runQuery(
   sql: string
 ): Promise<{ columns: string[]; rows: Record<string, unknown>[] }> {
-  const db = await getDB()
-  const rawRows = await dbAll(db, sql)
+  const conn = await getDB()
+  // conn.query() is synchronous in the blocking bundle
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const table: any = conn.query(sql)
 
-  const columns = rawRows.length > 0 ? Object.keys(rawRows[0]) : []
+  const columns: string[] = table.schema.fields.map((f: { name: string }) => f.name)
+  const rows: Record<string, unknown>[] = []
 
-  const rows = rawRows.map(row =>
-    Object.fromEntries(
-      Object.entries(row).map(([k, v]) => {
-        if (v instanceof Date) {
-          const iso = v.toISOString()
-          return [k, iso.endsWith('T00:00:00.000Z')
-            ? iso.slice(0, 10)
-            : iso.replace('T', ' ').replace(/\.\d+Z$/, '')]
-        }
-        if (typeof v === 'bigint') return [k, Number(v)]
-        return [k, v]
-      })
-    )
-  )
+  for (let i = 0; i < table.numRows; i++) {
+    const obj: Record<string, unknown> = {}
+    for (let j = 0; j < columns.length; j++) {
+      const col = columns[j]
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const field: any = table.schema.fields[j]
+      const v = table.getChild(col)?.get(i) ?? null
+      const typeName: string = field?.type?.constructor?.name ?? ''
+
+      if (typeName === 'Timestamp_' && typeof v === 'number') {
+        // Milliseconds since epoch → "YYYY-MM-DD HH:MM:SS"
+        obj[col] = new Date(v).toISOString().replace('T', ' ').replace(/\.\d+Z$/, '')
+      } else if (typeName === 'Date_' && typeof v === 'number') {
+        // Milliseconds since epoch (midnight UTC) → "YYYY-MM-DD"
+        obj[col] = new Date(v).toISOString().slice(0, 10)
+      } else if (typeof v === 'bigint') {
+        obj[col] = Number(v)
+      } else {
+        obj[col] = v
+      }
+    }
+    rows.push(obj)
+  }
 
   return { columns, rows }
 }
