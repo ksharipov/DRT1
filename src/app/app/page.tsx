@@ -25,13 +25,11 @@ export default function AppPage() {
   const [loading, setLoading] = useState(false)
   const [vendorId, setVendorId] = useState(SUPPLIER_1_ID)
   const [listening, setListening] = useState(false)
+  const [hasSpeech, setHasSpeech] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const recognizerRef = useRef<any>(null)
   const router = useRouter()
-
-  const hasSpeech = typeof window !== 'undefined' &&
-    ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)
 
   function startVoice() {
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
@@ -49,6 +47,22 @@ export default function AppPage() {
     rec.start()
     recognizerRef.current = rec
   }
+
+  useEffect(() => {
+    setHasSpeech('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)
+  }, [])
+
+  useEffect(() => {
+    function handleGlobalKey(e: KeyboardEvent) {
+      if (e.ctrlKey || e.metaKey || e.altKey) return
+      if (e.key.length !== 1) return
+      const tag = (document.activeElement as HTMLElement)?.tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
+      inputRef.current?.focus()
+    }
+    document.addEventListener('keydown', handleGlobalKey)
+    return () => document.removeEventListener('keydown', handleGlobalKey)
+  }, [])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })

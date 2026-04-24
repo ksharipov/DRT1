@@ -123,6 +123,9 @@ export default function ChartRenderer({ chartType, columns, rows }: Props) {
     )
   }
 
+  // Safety guard: no numeric metric column — nothing to plot
+  if (valueColumns.length === 0) return null
+
   // BAR (horizontal, default)
   const valCol = valueColumns[0] ?? columns[1] ?? labelCol
   const data = rows.map(r => ({ label: String(r[labelCol] ?? ''), value: toNum(r[valCol]) }))

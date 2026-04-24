@@ -57,14 +57,19 @@ Rules:
 5. If the question cannot be answered from available data (e.g. asking "why" customers cancelled), set canAnswer=false
 6. Do NOT make up data or infer things not in the schema
 7. Only SELECT columns that should appear in the chart (label + metric). Never add helper columns (sort keys, intermediate calculations) to the SELECT list. For ordering by a non-displayed expression use it directly in ORDER BY — DuckDB supports ORDER BY EXTRACT(DOW FROM o.order_date) without it being in SELECT.
+8. "List" or enumeration queries MUST always include a numeric metric column — never return a label-only result set. Examples:
+   - "list products ever sold" → SELECT p.name, SUM(oi.quantity * oi.unit_price) AS revenue ... ORDER BY revenue DESC (bar)
+   - "list my customers" → SELECT c.email, COUNT(DISTINCT o.id) AS orders ... (bar)
+   - "list days with zero sales" → SELECT d.day::DATE AS date, 0 AS sales FROM generate_series(...) ... WHERE no sales (bar)
+   This ensures the chart always has a plottable metric. chartType: null is ONLY for canAnswer=false or purely informational text questions (e.g. "what does SKU mean?").
 
 Chart type selection:
 - "pie": ALWAYS use for category breakdowns, distribution by type/category, product mix, share or proportion queries. Keywords that trigger pie: "by category", "breakdown", "distribution", "share", "mix", "proportion", "percentage of total"
-- "bar": rankings, top-N lists (top 5, top 10), comparisons between specific named items where pie is not appropriate
+- "bar": rankings, top-N lists (top 5, top 10), comparisons between specific named items where pie is not appropriate, enumeration queries ("list all X")
 - "line": trends over time (daily/weekly/monthly)
 - "grouped_bar": comparing two metrics side-by-side across categories or time periods
 - "kpi": single number result
-- null: text-only answer (canAnswer=false or purely informational)
+- null: ONLY for canAnswer=false or purely informational text questions with no data to show
 
 Respond ONLY with valid JSON, no markdown:
 {

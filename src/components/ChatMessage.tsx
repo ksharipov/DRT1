@@ -62,6 +62,44 @@ export default function ChatMessage({ msg }: { msg: Message }) {
                 </div>
               )}
 
+              {!msg.chartType && msg.columns && msg.rows && msg.rows.length > 0 && (
+                <div className="mt-2 text-sm" style={{ color: '#1A1A1A' }}>
+                  {msg.columns.length === 1
+                    ? (
+                      <p className="leading-relaxed">
+                        {msg.rows.map(r => String(r[msg.columns![0]] ?? '')).join(', ')}
+                      </p>
+                    )
+                    : (
+                      <table className="w-full text-xs border-collapse">
+                        <thead>
+                          <tr>
+                            {msg.columns.map(col => (
+                              <th key={col} className="text-left py-1 px-2 font-semibold"
+                                style={{ borderBottom: '1px solid #E5E7EB', color: '#6C757D' }}>
+                                {col.replace(/_/g, ' ')}
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {msg.rows.map((row, i) => (
+                            <tr key={i}>
+                              {msg.columns!.map(col => (
+                                <td key={col} className="py-1 px-2"
+                                  style={{ borderBottom: '1px solid #F3F4F6' }}>
+                                  {String(row[col] ?? '')}
+                                </td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )
+                  }
+                </div>
+              )}
+
               {msg.sql && (
                 <div className="mt-3 pt-3" style={{ borderTop: '1px solid #E5E7EB' }}>
                   <button
