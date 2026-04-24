@@ -68,6 +68,13 @@ export default function AppPage() {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, loading])
 
+  useEffect(() => {
+    const el = inputRef.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = Math.min(el.scrollHeight, 200) + 'px'
+  }, [input])
+
   const currentVendor = VENDORS.find(v => v.id === vendorId) ?? VENDORS[0]
 
   async function sendMessage(text: string) {
@@ -76,6 +83,7 @@ export default function AppPage() {
     const userMsg: Message = { id: crypto.randomUUID(), role: 'user', text: text.trim() }
     setMessages(prev => [...prev, userMsg])
     setInput('')
+    if (inputRef.current) inputRef.current.style.height = 'auto'
     setLoading(true)
 
     try {
@@ -235,7 +243,7 @@ export default function AppPage() {
               placeholder={listening ? 'Listening…' : `Ask ${currentVendor.name} anything about your sales…`}
               disabled={loading}
               className="flex-1 text-sm outline-none resize-none bg-transparent"
-              style={{ color: '#1A1A1A', maxHeight: 120 }}
+              style={{ color: '#1A1A1A' }}
             />
           </div>
           <button
