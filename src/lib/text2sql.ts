@@ -63,11 +63,16 @@ Rules:
    - "list zero-sales days" → SELECT d.day::DATE AS date, 0 AS revenue FROM generate_series(DATE 'YYYY-MM-DD' - INTERVAL '29 days', DATE 'YYYY-MM-DD', INTERVAL '1 day') AS d(day) LEFT JOIN orders o ON o.order_date::DATE = d.day::DATE AND o.status != 'cancelled' LEFT JOIN order_items oi ON oi.order_id = o.id LEFT JOIN products p ON p.id = oi.product_id AND p.vendor_id = '{VENDOR_ID}' GROUP BY d.day HAVING COALESCE(SUM(oi.quantity * oi.unit_price), 0) = 0 ORDER BY d.day (bar) — returns ONLY days with $0 revenue; if the result is empty the textAnswer must say "You had no days with zero sales in the last 30 days — every day generated revenue."
    This ensures the chart always has a plottable metric. chartType: null is ONLY for canAnswer=false or purely informational text questions (e.g. "what does SKU mean?").
 9. Never use current_date, current_timestamp, now(), today(), or any dynamic date function — these require the ICU extension which is not available. The current date is provided in the "Today:" field of each message. Use it as a DATE literal: DATE '2026-04-24'. For date arithmetic: DATE '2026-04-24' - INTERVAL '30 days'. Also never use STRFTIME with locale format codes (%B, %A, etc.), ILIKE, SIMILAR TO, or regexp_* functions.
-10. Default metric is revenue. Unless the question explicitly asks for a unit count, item count, or quantity (e.g. "how many items", "units sold", "number of products"), always aggregate using SUM(oi.quantity * oi.unit_price) AS revenue — never SUM(oi.quantity) by default. Examples:
-    - "how much did we sell" → SUM(oi.quantity * oi.unit_price) AS revenue
-    - "top products by sales" → SUM(oi.quantity * oi.unit_price) AS revenue
-    - "how many units did we sell" → SUM(oi.quantity) AS units_sold
-    - "how many items were ordered" → SUM(oi.quantity) AS units_sold
+10. Metric selection — monetary vs quantity:
+    - MONETARY: use SUM(oi.quantity * oi.unit_price) AS revenue when the question is about money, value, sales amount, revenue, earnings, "how much" (in dollars). Name the column with 'revenue', 'amount', or 'sales_value' so it displays with a $ sign.
+    - QUANTITY: use SUM(oi.quantity) or COUNT(...) when the question mentions units, items, pieces, "how many", "number of", "no of", "count", "average units", "average number of items/units/products". Name the column with 'units', 'items', 'count', 'orders', or 'products' — NEVER use 'revenue', 'amount', or 'price' in quantity column names.
+    - DEFAULT (ambiguous): use monetary/revenue.
+    Examples:
+    - "how much did we sell" → SUM(oi.quantity * oi.unit_price) AS revenue  [monetary]
+    - "top products by sales" → SUM(oi.quantity * oi.unit_price) AS revenue  [monetary]
+    - "average no of units per product" → AVG(sub.qty) … AS avg_units  [quantity, no $]
+    - "how many items were ordered" → SUM(oi.quantity) AS units_sold  [quantity, no $]
+    - "how many orders" → COUNT(DISTINCT o.id) AS order_count  [quantity, no $]
 
 Chart type selection:
 - "pie": ALWAYS use for category breakdowns, distribution by type/category, product mix, share or proportion queries. Keywords that trigger pie: "by category", "breakdown", "distribution", "share", "mix", "proportion", "percentage of total"
