@@ -148,6 +148,9 @@ export async function runQuery(
         obj[col] = new Date(v).toISOString().slice(0, 10)
       } else if (typeof v === 'bigint') {
         obj[col] = Number(v)
+      } else if (typeName === 'Decimal' && v instanceof Uint32Array && v.length >= 2) {
+        // DuckDB HUGEINT → Arrow Decimal128 (128-bit little-endian, 4 × Uint32)
+        obj[col] = v[1] * 0x100000000 + v[0]
       } else {
         obj[col] = v
       }

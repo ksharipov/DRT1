@@ -20,7 +20,7 @@ function toNum(v: unknown): number {
   return 0
 }
 
-const CURRENCY_RE = /revenue|amount|price|sales|total|cost|earning/i
+const CURRENCY_RE = /revenue|amount|price/i
 function isCurrency(col: string): boolean {
   return CURRENCY_RE.test(col)
 }
